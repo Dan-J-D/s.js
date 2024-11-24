@@ -1,0 +1,19 @@
+{
+  "name": "s",
+  "version": "1.0.0",
+  "description": "",
+  "main": "",
+  "scripts": {
+    "start": "npx tsc && node ./output/generate.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@types/argparse": "^2.0.16",
+    "@types/node": "^22.7.5",
+    "argparse": "^2.0.1",
+    "typescript": "^5.6.3"
+  },
+  "type": "module"
+}
