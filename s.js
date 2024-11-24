@@ -32,8 +32,8 @@
  * @property {baseSerializableValidator} baseSerializableValidator
  */
 export const s = Object.freeze((() => {
+	// Inlined utf8 from https://www.npmjs.com/package/utf8
 	const utf8 = (function () {
-
 		var stringFromCharCode = String.fromCharCode;
 
 		// Taken from https://mths.be/punycode
