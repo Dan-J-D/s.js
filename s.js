@@ -32,8 +32,8 @@
  * @property {baseSerializableValidator} baseSerializableValidator
  */
 export const s = Object.freeze((() => {
+	// Inlined utf8 from https://www.npmjs.com/package/utf8
 	const utf8 = (function () {
-
 		var stringFromCharCode = String.fromCharCode;
 
 		// Taken from https://mths.be/punycode
@@ -743,6 +743,15 @@ export const s = Object.freeze((() => {
 	const i32 = () => baseWholeNumber(-0x80000000, 0x7fffffff, 32, true, serializedTypeIds.i32);
 	const i64 = () => baseWholeNumber(BigInt('-9223372036854775808'), BigInt('0x7fffffffffffffff'), 64, true, serializedTypeIds.i64);
 
+	/**
+	 * @typedef floatValidator
+	 * @extends baseSerializableValidator
+	 * 
+	 * @property {number} _bits
+	 * 
+	 * @property {(x: number) => this} min
+	 * @property {(x: number) => this} max
+	 */
 	class floatValidator extends baseSerializableValidator {
 		constructor(bits) {
 			super();
@@ -769,6 +778,44 @@ export const s = Object.freeze((() => {
 
 				return [[], v];
 			});
+		}
+
+		/**
+		 * @param {number} x
+		 * @returns {this}
+		 */
+		min(x) {
+			if (this._default !== undefined && this._default < x)
+				this._errors.push(new Error('floatValidator.min: default value must be greater than ' + x));
+
+			if (typeof x !== 'number' || isNaN(x) || !isFinite(x))
+				this._errors.push(new Error('floatValidator.min: x must be a finite number'));
+
+			this.addCustomValidator((v) => {
+				if (v < x)
+					return [[new Error('floatValidator.min: value must be greater than ' + x)], undefined];
+				return [[], v];
+			});
+			return this;
+		}
+
+		/**
+		 * @param {number} x
+		 * @returns {this}
+		 */
+		max(x) {
+			if (this._default !== undefined && this._default > x)
+				this._errors.push(new Error('floatValidator.max: default value must be less than ' + x));
+
+			if (typeof x !== 'number' || isNaN(x) || !isFinite(x))
+				this._errors.push(new Error('floatValidator.max: x must be a finite number'));
+
+			this.addCustomValidator((v) => {
+				if (v > x)
+					return [[new Error('floatValidator.max: value must be less than ' + x)], undefined];
+				return [[], v];
+			});
+			return this;
 		}
 
 		/**
@@ -1596,163 +1643,3 @@ export const s = Object.freeze((() => {
 		baseSerializableValidator
 	}
 })());
-
-const i16 = s.i16();
-const u64 = s.u64();
-const i64 = s.i64();
-const string = s.string();
-
-console.log(s.u8().validate(-1)[0].length > 0);
-console.log(i16.deserialize(i16.serialize(-6423)[1])[1] === -6423);
-console.log(u64.deserialize(u64.serialize(0x123456789abcdef0n)[1])[1] === 0x123456789abcdef0n);
-console.log(i64.deserialize(i64.serialize(0x123456789abcdef0n)[1])[1] === 0x123456789abcdef0n);
-console.log(i64.deserialize(i64.serialize(BigInt('-9223372036854775808'))[1])[1] === -9223372036854775808n);
-console.log(i64.deserialize(i64.serialize(BigInt('0x7fffffffffffffff'))[1])[1] === 0x7fffffffffffffffn);
-console.log(i64.serialize(BigInt('0x8000000000000000'))[0].length > 0)
-console.log(string.deserialize(string.serialize('hello')[1])[1] === 'hello');
-console.log(string.deserialize(string.serialize('✋ hello world')[1])[1] === '✋ hello world');
-
-const arr = s.array(s.u8());
-
-console.log(arr.validate([1])[1][0] === 1)
-console.log(arr.validate([1, -1])[0].length > 0)
-
-const or = s.or(s.u8(), s.i8());
-console.log(or.deserialize(or.serialize(1)[1])[1] === 1)
-console.log(or.deserialize(or.serialize(-10)[1])[1] === -10)
-
-const arr2 = s.array(s.or(s.u8(), s.i8(), s.string().minlength(5)));
-console.log(arr2.validate([1, -1])[1][0] === 1)
-console.log(arr2.validate([1, -1])[1][1] === -1)
-console.log(arr2.deserialize(arr2.serialize([1, -1])[1])[1][0] === 1)
-console.log(arr2.deserialize(arr2.serialize([1, -1])[1])[1][1] === -1)
-console.log(arr2.deserialize(arr2.serialize([1, -1, '🙋‍♂️ hi there'])[1])[1][2] === '🙋‍♂️ hi there')
-console.log(string.deserialize(string.serialize(String.fromCharCode(0xfff3))[1])[1] === String.fromCharCode(0xfff3))
-
-class a {
-	constructor() {
-		this.x = 1;
-		this.y = 'hello';
-	}
-}
-
-const aa = s.instanceOf(a);
-console.log(aa.validate(new a())[1] instanceof a)
-console.log(aa.isSerializable() === false)
-console.log(aa.serialize(new a())[0].length > 0)
-
-const eq = s.equal(1);
-console.log(eq.validate(1)[1] === 1)
-console.log(eq.validate(2)[0].length > 0)
-
-const b = s.boolean();
-console.log(b.validate(true)[1] === true)
-console.log(b.validate(false)[1] === false)
-console.log(b.validate(1)[0].length > 0)
-
-const f32 = s.f32();
-const f64 = s.f64();
-
-console.log(f32.validate(1.5)[1] === 1.5)
-console.log(f32.validate(1.5)[0].length === 0)
-console.log(f64.validate(1.5)[1] === 1.5)
-console.log(f64.validate(1.5)[0].length === 0)
-
-console.log(f32.deserialize(f32.serialize(1.6)[1])[1])
-
-const obj = s.object({
-	x: s.u8().min(25),
-	y: s.string().minlength(5),
-	z: s.or(s.u8(), s.i8()),
-	a: s.array(s.u8()).optional(),
-	b: s.object({
-		c: s.u8()
-	}).optional(),
-	c: s.instanceOf(a).optional(),
-	d: s.or(s.equal(1), s.equal('test')).default(1)
-});
-
-console.log(obj.validate({ x: 25, y: 'hello', z: 1 })[1].x === 25)
-console.log(obj.validate({ x: 25, y: 'hello', z: 1 })[1].y === 'hello')
-console.log(obj.validate({ x: 25, y: 'hello', z: 1 })[1].z === 1)
-console.log(obj.deserialize(obj.serialize({
-	x: 25, y: 'hello there', z: 1, a: [1, 5, 6], b: { c: 255 }
-})[1])[1].b.c === 255)
-console.log(obj.deserialize(obj.serialize({
-	x: 25, y: 'hello there', z: 1, a: [1, 5, 6], c: new a()
-})[1])[1].c === undefined)
-console.log(obj.deserialize(obj.serialize({
-	x: 25, y: 'hello there', z: 1, a: [1, 5, 6], c: new a(), d: 'test'
-})[1])[1].d === undefined)
-console.log(obj.validate(obj.deserialize(obj.serialize({
-	x: 25, y: 'hello there', z: 1, a: [1, 5, 6], c: new a()
-})[1])[1]))
-console.log(obj.serialize({
-	x: 25, y: 'hello there', z: 1, a: [1, 5, 6], c: new a()
-})[1])
-
-let data = {
-	"t": "Collector", "if": false, "mm": true, "ic": false,
-	"wd": false, "hc": true, "hl": true, "hs": true, "ha": true,
-	"u": "http://localhost/#", "r": "", "l": "en-US", "to": 240,
-	"bl": "en-US;en", "bn": "Brave", "bv": "129.0.0.0", "bw": 589,
-	"bh": 752, "bcd": 24, "bpd": 24, "en": "Blink", "ev": "129.0.0.0",
-	"on": "Windows", "ov": "10", "dm": 8, "dt": "desktop", "da": "amd64",
-	"db": 64, "dcc": 16, "do": "landscape-primary", "dg": "Google Inc. (NVIDIA)",
-	"dr": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x00002206) Direct3D11 vs_5_0 ps_5_0, D3D11)",
-	"msx": 0, "msy": 0, "dw": 589, "dh": 752, "tn": "browser-js",
-	"tv": "1.0.0", "et": "wpv", "ts": "2024-10-10T18:05:34.610Z",
-	"pts": "2024-10-10T18:05:34.371Z", "pid": "oK0A6k_48na50opmXGjdiLOjh7MQ.lDg",
-	"aid": "test", "uid": "BtJg-zNUbz1wIbxH7W07rsZtesOXcbfW",
-	"sid": "JEe+VmAXjQY6Rlh411fQKp4-Gn6tSoiP"
-}
-
-const dataValidator = s.object({
-	t: s.string(),
-	if: s.boolean(),
-	mm: s.boolean(),
-	wd: s.boolean(),
-	hc: s.boolean(),
-	hl: s.boolean(),
-	hs: s.boolean(),
-	ha: s.boolean(),
-	u: s.string(),
-	r: s.string(),
-	l: s.string(),
-	to: s.u32(),
-	bl: s.string(),
-	bn: s.string(),
-	bv: s.string(),
-	bw: s.u32(),
-	bh: s.u32(),
-	bcd: s.u32(),
-	bpd: s.u32(),
-	en: s.string(),
-	ev: s.string(),
-	on: s.string(),
-	ov: s.string(),
-	dm: s.u8(),
-	dt: s.string(),
-	da: s.string(),
-	db: s.u8(),
-	dcc: s.u8(),
-	do: s.string(),
-	dg: s.string(),
-	dr: s.string(),
-	msx: s.u32(),
-	msy: s.u32(),
-	dw: s.u32(),
-	dh: s.u32(),
-	tn: s.string(),
-	tv: s.string(),
-	et: s.string(),
-	ts: s.string(),
-	pts: s.string(),
-	pid: s.string(),
-	aid: s.string(),
-	uid: s.string(),
-	sid: s.string()
-});
-
-import fs from 'fs';
-fs.writeFileSync('data.bin', dataValidator.serialize(data)[1]);
