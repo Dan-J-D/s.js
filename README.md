@@ -4,6 +4,9 @@ A tiny pure js binary serializer & type validator.
 - Supports validating un-serializable types
 - Supports serializable data types: integers, floats, booleans, utf8 Strings, arrays & objects
 
+_Important Notice: When deserializing data, the output is not validated unlike serialization._
+
+
 ## Examples
 
 ### Typescript type to s.js type
@@ -25,6 +28,29 @@ const user_signup = s.object({
     account_type: s.or(s.equal('personal'), s.equal('business')),
     referrals: s.array(s.string()).optional(),
 });
+```
+
+### Validating data
+```js
+// err is of type Error[]
+// data is validated data output or undefined if error
+const [err, data] = user_signup.validate({
+    first_name: 'dan',
+    age: 18,
+    account_type: 'personal',
+});
+```
+
+### Serializing data
+```js
+const [
+    err: Error[], 
+    data: Uint8Array | undefined
+] = user_signup.serialize({
+    first_name: 'dan',
+    age: 18,
+    account_type: 'personal',
+})
 ```
 
 ### Showing all functionality
