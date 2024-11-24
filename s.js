@@ -743,6 +743,15 @@ export const s = Object.freeze((() => {
 	const i32 = () => baseWholeNumber(-0x80000000, 0x7fffffff, 32, true, serializedTypeIds.i32);
 	const i64 = () => baseWholeNumber(BigInt('-9223372036854775808'), BigInt('0x7fffffffffffffff'), 64, true, serializedTypeIds.i64);
 
+	/**
+	 * @typedef floatValidator
+	 * @extends baseSerializableValidator
+	 * 
+	 * @property {number} _bits
+	 * 
+	 * @property {(x: number) => this} min
+	 * @property {(x: number) => this} max
+	 */
 	class floatValidator extends baseSerializableValidator {
 		constructor(bits) {
 			super();
@@ -769,6 +778,44 @@ export const s = Object.freeze((() => {
 
 				return [[], v];
 			});
+		}
+
+		/**
+		 * @param {number} x
+		 * @returns {this}
+		 */
+		min(x) {
+			if (this._default !== undefined && this._default < x)
+				this._errors.push(new Error('floatValidator.min: default value must be greater than ' + x));
+
+			if (typeof x !== 'number' || isNaN(x) || !isFinite(x))
+				this._errors.push(new Error('floatValidator.min: x must be a finite number'));
+
+			this.addCustomValidator((v) => {
+				if (v < x)
+					return [[new Error('floatValidator.min: value must be greater than ' + x)], undefined];
+				return [[], v];
+			});
+			return this;
+		}
+
+		/**
+		 * @param {number} x
+		 * @returns {this}
+		 */
+		max(x) {
+			if (this._default !== undefined && this._default > x)
+				this._errors.push(new Error('floatValidator.max: default value must be less than ' + x));
+
+			if (typeof x !== 'number' || isNaN(x) || !isFinite(x))
+				this._errors.push(new Error('floatValidator.max: x must be a finite number'));
+
+			this.addCustomValidator((v) => {
+				if (v > x)
+					return [[new Error('floatValidator.max: value must be less than ' + x)], undefined];
+				return [[], v];
+			});
+			return this;
 		}
 
 		/**
